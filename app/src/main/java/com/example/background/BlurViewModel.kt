@@ -24,8 +24,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.work.Data
 import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.example.background.workers.BlurWorker
+import com.example.background.workers.CleanUpWorker
+import com.example.background.workers.SaveImageToFileWorker
 
 
 class BlurViewModel(application: Application) : ViewModel() {
@@ -39,10 +42,26 @@ class BlurViewModel(application: Application) : ViewModel() {
         imageUri = getImageUri(application.applicationContext)
     }
 
+    private fun createInputDataForUri(): Data {
+        val builder = Data.Builder()
+        imageUri?.let {
+            builder.putString(KEY_IMAGE_URI, it.toString())
+        }
+        return builder.build()
+    }
+
     internal fun applyBlur(blurLevel: Int) {
-        workManager.enqueue(
-            OneTimeWorkRequest.from(BlurWorker::class.java)
-        )
+        val blurRequest =
+            OneTimeWorkRequestBuilder<BlurWorker>().setInputData(createInputDataForUri()).build()
+        val cleanUpRequest = OneTimeWorkRequest.Builder(CleanUpWorker::class.java).build()
+        val saveRequest = OneTimeWorkRequest.Builder(SaveImageToFileWorker::class.java).build()
+
+        workManager
+            .beginWith(cleanUpRequest)
+            .then(blurRequest)
+            .then(saveRequest)
+            .enqueue()
+
     }
 
     private fun uriOrNull(uriString: String?): Uri? {
@@ -51,14 +70,6 @@ class BlurViewModel(application: Application) : ViewModel() {
         } else {
             null
         }
-    }
-
-    private fun createInputDataForUri(): Data {
-        val builder = Data.Builder()
-        imageUri?.let {
-            builder.putString(KEY_IMAGE_URI, it.toString())
-        }
-        return builder.build()
     }
 
     private fun getImageUri(context: Context): Uri {
