@@ -50,13 +50,20 @@ class BlurViewModel(application: Application) : ViewModel() {
         return builder.build()
     }
 
+    fun cancelWork() {
+        workManager.cancelUniqueWork(IMAGE_MANIPULATION_WORK_NAME)
+    }
+
     internal fun applyBlur(blurLevel: Int) {
+        val constraints = Constraints.Builder().setRequiresCharging(true).build()
+
         val blurRequest =
             OneTimeWorkRequestBuilder<BlurWorker>().setInputData(createInputDataForUri()).build()
 
         val cleanUpRequest = OneTimeWorkRequest.Builder(CleanUpWorker::class.java).build()
 
         val saveRequest = OneTimeWorkRequest.Builder(SaveImageToFileWorker::class.java)
+            .setConstraints(constraints)
             .addTag(TAG_OUTPUT)
             .build()
 
