@@ -1,10 +1,16 @@
 package com.example.background
 
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import com.example.background.databinding.ActivityBlurBinding
+
+private const val TAG = "BlurActivity"
 
 class BlurActivity : AppCompatActivity() {
 
@@ -15,11 +21,12 @@ class BlurActivity : AppCompatActivity() {
     }
     private lateinit var binding: ActivityBlurBinding
 
+    @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityBlurBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
+        getPermissions()
         binding.goButton.setOnClickListener { viewModel.applyBlur(blurLevel) }
     }
 
@@ -54,4 +61,15 @@ class BlurActivity : AppCompatActivity() {
                 R.id.radio_blur_lv_3 -> 3
                 else -> 1
             }
+
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun getPermissions() {
+        val permission = arrayOf(
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
+        Log.d(TAG, "requesting permissions")
+        this.requestPermissions(permission, 100)
+    }
 }
