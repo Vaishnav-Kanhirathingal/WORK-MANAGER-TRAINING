@@ -1,6 +1,7 @@
 package com.example.background
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -8,6 +9,8 @@ import android.view.View
 import androidx.activity.viewModels
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
+import androidx.work.WorkInfo
 import com.example.background.databinding.ActivityBlurBinding
 
 private const val TAG = "BlurActivity"
@@ -28,6 +31,35 @@ class BlurActivity : AppCompatActivity() {
         setContentView(binding.root)
         getPermissions()
         binding.goButton.setOnClickListener { viewModel.applyBlur(blurLevel) }
+        viewModel.outputWorkInfo.observe(this, workInfoObserver())
+        binding.seeFileButton.setOnClickListener {
+            viewModel.outputUri?.let {
+                val actionView = Intent(Intent.ACTION_VIEW, it)
+                actionView.resolveActivity(packageManager)?.run {
+                    startActivity(actionView)
+                }
+            }
+        }
+    }
+
+    private fun workInfoObserver(): Observer<List<WorkInfo>> {
+        return Observer {
+            if (it.isNullOrEmpty()) {
+                return@Observer
+            }
+            val workInfo = it[0]
+
+            if (workInfo.state.isFinished) {
+                showWorkFinished()
+                val outUri = workInfo.outputData.getString(KEY_IMAGE_URI)
+                if (!outUri.isNullOrEmpty()) {
+                    viewModel.setOutputUri(outUri)
+                    binding.seeFileButton.visibility = View.VISIBLE
+                }
+            } else {
+                showWorkInProgress()
+            }
+        }
     }
 
     /**

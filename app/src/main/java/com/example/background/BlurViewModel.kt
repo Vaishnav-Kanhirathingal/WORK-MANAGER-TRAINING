@@ -20,12 +20,10 @@ import android.app.Application
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.work.Data
-import androidx.work.OneTimeWorkRequest
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
+import androidx.work.*
 import com.example.background.workers.BlurWorker
 import com.example.background.workers.CleanUpWorker
 import com.example.background.workers.SaveImageToFileWorker
@@ -37,9 +35,11 @@ class BlurViewModel(application: Application) : ViewModel() {
     internal var outputUri: Uri? = null
 
     private val workManager = WorkManager.getInstance(application)
+    var outputWorkInfo: LiveData<List<WorkInfo>>
 
     init {
         imageUri = getImageUri(application.applicationContext)
+        outputWorkInfo = workManager.getWorkInfosByTagLiveData(TAG_OUTPUT)
     }
 
     private fun createInputDataForUri(): Data {
@@ -53,15 +53,21 @@ class BlurViewModel(application: Application) : ViewModel() {
     internal fun applyBlur(blurLevel: Int) {
         val blurRequest =
             OneTimeWorkRequestBuilder<BlurWorker>().setInputData(createInputDataForUri()).build()
-        val cleanUpRequest = OneTimeWorkRequest.Builder(CleanUpWorker::class.java).build()
-        val saveRequest = OneTimeWorkRequest.Builder(SaveImageToFileWorker::class.java).build()
 
-        workManager
-            .beginWith(cleanUpRequest)
+        val cleanUpRequest = OneTimeWorkRequest.Builder(CleanUpWorker::class.java).build()
+
+        val saveRequest = OneTimeWorkRequest.Builder(SaveImageToFileWorker::class.java)
+            .addTag(TAG_OUTPUT)
+            .build()
+
+        workManager.beginUniqueWork(
+            IMAGE_MANIPULATION_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            cleanUpRequest
+        )
             .then(blurRequest)
             .then(saveRequest)
             .enqueue()
-
     }
 
     private fun uriOrNull(uriString: String?): Uri? {
